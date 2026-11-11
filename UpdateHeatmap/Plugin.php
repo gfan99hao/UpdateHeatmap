@@ -4,7 +4,7 @@
  *
  * @package UpdateHeatmap
  * @author  Gavin
- * @version 1.8.1
+ * @version 1.8.3
  * @since   1.0.0
  * @link    https://typecho.org
  */
@@ -42,10 +42,25 @@ class Plugin implements PluginInterface
             }
         }
 
+        // 清理旧缓存：升级覆盖或重新启用后不留旧数据快照
+        self::clearCache();
+
         return _t('UpdateHeatmap 已启用。本插件不会自动注入页面，请在主题模板需要的位置调用 Plugin::output() 手动插入。文章发布或修改后热力图数据会自动刷新。');
     }
 
     public static function deactivate() {}
+
+    /**
+     * 插件设置保存回调（Typecho 保存设置时经 Widget\Plugins\Edit::configHandle() 调用，
+     * 返回空值则静默并照常持久化）
+     * 设置变更（如显示天数）后立即清缓存：缓存键按"起始日期"散列，改回一小时内的
+     * 旧天数会命中旧快照，必须在此主动失效才能保证任何方向的改动前台立即生效
+     */
+    public static function configCheck(array $settings)
+    {
+        self::clearCache();
+        return null;
+    }
 
     /**
      * 清除全部热力图数据缓存（挂载于 Widget\Contents\Post\Edit 的 finish* 钩子）
@@ -139,7 +154,8 @@ class Plugin implements PluginInterface
         $days      = min(3650, max(30, (int) ($cfg->days ?? 365)));
         $style     = (string) ($cfg->style ?? 'github');
         $levels    = min(6, max(2, (int) ($cfg->levels ?? 4)));
-        $threshold = max(0, (int) ($cfg->threshold ?? 0));
+        // 上界钳制防止图例标签整型溢出成科学计数法（$step * 5 需保持 int 范围内）
+        $threshold = min(100000, max(0, (int) ($cfg->threshold ?? 0)));
         $cacheTime = max(0, (int) ($cfg->cacheTime ?? 3600));
         $alpha     = min(100, max(0, (int) ($cfg->borderAlpha ?? 8))) / 100;
         $mode      = (string) ($cfg->darkMode ?? '0');
@@ -226,6 +242,10 @@ class Plugin implements PluginInterface
         if (!is_file($file)) {
             return null;
         }
+        // 大小上限（合法缓存最大约 100KB）：防止共享临时目录被植入超大文件导致内存耗尽
+        if ((@filesize($file) ?: 0) > 1048576) {
+            return null;
+        }
         $raw = @file_get_contents($file);
         if ($raw === false) {
             return null;
@@ -252,6 +272,11 @@ class Plugin implements PluginInterface
 
     private static function writeCache(string $file, array $data): void
     {
+        // 防符号链接劫持：共享临时目录可能被同机其他账号预置软链，
+        // rename 会穿透软链改写其目标文件；unlink 软链只移除链接本身，不伤目标
+        if (@is_link($file) && !@unlink($file)) {
+            return;
+        }
         // 随机后缀防临时文件名被预测（共享主机符号链接攻击面），失败时清理残留
         $tmp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
         if (@file_put_contents($tmp, serialize(['t' => time(), 'd' => $data])) !== false) {
