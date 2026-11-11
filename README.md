@@ -1,6 +1,6 @@
 # UpdateHeatmap — Typecho 更新热力图插件
 
-适用于 Typecho 1.3.0，在页面底部（或模板任意位置）显示类似 GitHub 的文章更新热力图。
+适用于 Typecho / TypeRenew 可以在模板任意位置显示类似 GitHub 的文章更新热力图。
 
 ## 数据说明
 
