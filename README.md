@@ -2,6 +2,8 @@
 
 适用于 Typecho / TypeRenew 可以在模板任意位置显示类似 GitHub 的文章更新热力图。
 
+演示：[别催别催](https://biecui.com)
+
 ## 数据说明
 
 - **新建**：按文章 `created` 时间按日统计已发布文章。
