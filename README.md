@@ -1,6 +1,6 @@
 # UpdateHeatmap — Typecho 更新热力图插件
 
-适用于 Typecho / TypeRenew 可以在模板任意位置显示类似 GitHub 的文章更新热力图。
+AI附体的情况下搞出来的适用于 Typecho / TypeRenew 可以在模板任意位置显示类似 GitHub 的文章更新热力图。
 
 演示：[别催别催](https://biecui.com)
 
